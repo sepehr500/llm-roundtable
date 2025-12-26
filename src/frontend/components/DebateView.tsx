@@ -1,28 +1,13 @@
 import React, { useRef, useEffect } from 'react';
 import { Streamdown } from 'streamdown';
 import { MessageStream } from './MessageStream';
+import { getColorStyles } from '../utils/colors';
 import type { DebateState } from '../../shared/types';
 
 interface Props {
   state: DebateState;
   streamingMessages: Map<string, string>;
 }
-
-const getColorStyles = (color: string = 'blue') => {
-  const styles: Record<string, string> = {
-    blue: 'border-blue-500 bg-blue-50',
-    red: 'border-red-500 bg-red-50',
-    green: 'border-green-500 bg-green-50',
-    purple: 'border-purple-500 bg-purple-50',
-    orange: 'border-orange-500 bg-orange-50',
-    pink: 'border-pink-500 bg-pink-50',
-    cyan: 'border-cyan-500 bg-cyan-50',
-    teal: 'border-teal-500 bg-teal-50',
-    indigo: 'border-indigo-500 bg-indigo-50',
-    amber: 'border-amber-500 bg-amber-50',
-  };
-  return styles[color] || styles.blue!;
-};
 
 export function DebateView({ state, streamingMessages }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -91,7 +76,7 @@ export function DebateView({ state, streamingMessages }: Props) {
                 </div>
               )}
               <div
-                className={`border-l-4 rounded-r-lg p-4 ${getColorStyles(participant.color)}`}
+                className={`border-l-4 rounded-r-lg p-4 ${getColorStyles(participant.color).container}`}
               >
                 <div className="flex items-center gap-3 mb-2">
                   <strong className="text-gray-900">{participant.name}</strong>

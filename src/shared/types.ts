@@ -46,6 +46,7 @@ export interface DebateState {
   maxRounds: number;
   researchComplete: Set<string>; // Participant IDs who finished research
   judgeModel?: string;           // Model used for judging
+  customSystemPrompt?: string;   // Optional custom system prompt for participants
   winner?: string;
   judgeReasoning?: string;
 }

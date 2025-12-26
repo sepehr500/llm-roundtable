@@ -75,6 +75,9 @@ const server = Bun.serve<{ sessionId: string | null }>({
     if (path.startsWith("/api/session/") && path.endsWith("/topic") && req.method === "POST") {
       try {
         const sessionId = path.split("/")[3];
+        if (!sessionId) {
+          return Response.json({ error: "Session ID required" }, { status: 400 });
+        }
         const { topic } = await req.json();
         const state = sessionManager.getSession(sessionId);
 
@@ -115,7 +118,10 @@ const server = Bun.serve<{ sessionId: string | null }>({
     if (path.startsWith("/api/session/") && path.endsWith("/confirm") && req.method === "POST") {
       try {
         const sessionId = path.split("/")[3];
-        const { participants, maxRounds, judgeModel } = await req.json();
+        if (!sessionId) {
+          return Response.json({ error: "Session ID required" }, { status: 400 });
+        }
+        const { participants, maxRounds, judgeModel, customSystemPrompt } = await req.json();
         const state = sessionManager.getSession(sessionId);
 
         if (!state) {
@@ -126,6 +132,9 @@ const server = Bun.serve<{ sessionId: string | null }>({
         state.maxRounds = maxRounds;
         if (judgeModel) {
           state.judgeModel = judgeModel;
+        }
+        if (customSystemPrompt) {
+          state.customSystemPrompt = customSystemPrompt;
         }
         state.phase = "research-ready";
 

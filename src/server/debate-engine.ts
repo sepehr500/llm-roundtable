@@ -21,13 +21,13 @@ export class DebateEngine {
     if (!state) throw new Error('Session not found');
 
     const systemPrompt = `You are a debate moderator helping to identify diverse positions on a topic.`;
-    const userPrompt = `Given the topic "${state.topic}", suggest 3-5 distinct, debatable positions that could be argued. Each position should be:
+    const userPrompt = `Given the topic "${state.topic}", suggest 2 distinct, opposing positions that could be argued. Each position should be:
 - Clear and specific
 - Genuinely debatable (not obviously right or wrong)
-- Different enough from other positions
+- Directly opposing each other
 - Able to be defended with logical arguments
 
-Return ONLY a JSON array of position strings, like: ["position 1", "position 2", "position 3"]`;
+Return ONLY a JSON array of 2 position strings, like: ["position 1", "position 2"]`;
 
     const response = await getLLMResponse('google/gemini-3-flash-preview', systemPrompt, userPrompt);
 
@@ -79,7 +79,7 @@ Return ONLY a JSON array of position strings, like: ["position 1", "position 2",
     const state = sessionManager.getSession(this.sessionId);
     if (!state) return;
 
-    const systemPrompt = `You are a debater preparing to argue for a specific position. Think through your key arguments and evidence.`;
+    const systemPrompt = state.customSystemPrompt || `You are a debater preparing to argue for a specific position. Think through your key arguments and evidence.`;
     const userPrompt = `Topic: ${state.topic}
 Your Position: ${participant.position}
 
@@ -135,7 +135,9 @@ Share your research and preparation thoughts (2-3 paragraphs).`;
 
     for (let i = 0; i < state.participants.length; i++) {
       const participant = state.participants[i];
-      await this.executeOpeningStatement(participant);
+      if (participant) {
+        await this.executeOpeningStatement(participant);
+      }
     }
 
     // Transition to debate-ready state
@@ -154,7 +156,7 @@ Share your research and preparation thoughts (2-3 paragraphs).`;
     const state = sessionManager.getSession(this.sessionId);
     if (!state) return;
 
-    const systemPrompt = `You are a skilled debater presenting your opening statement.`;
+    const systemPrompt = state.customSystemPrompt || `You are a skilled debater presenting your opening statement.`;
     const userPrompt = `Topic: ${state.topic}
 Your Position: ${participant.position}
 
@@ -216,7 +218,9 @@ Give a compelling 2-3 minute opening statement for your position. Your statement
 
       for (let i = 0; i < state.participants.length; i++) {
         const participant = state.participants[i];
-        await this.executeDebateTurn(participant);
+        if (participant) {
+          await this.executeDebateTurn(participant);
+        }
       }
     }
 
@@ -235,7 +239,7 @@ Give a compelling 2-3 minute opening statement for your position. Your statement
     // Build context from recent messages
     const context = this.buildContext(state, participant);
 
-    const systemPrompt = `You are a skilled debater in an active debate. Engage with other participants' arguments.`;
+    const systemPrompt = state.customSystemPrompt || `You are a skilled debater in an active debate. Engage with other participants' arguments.`;
     const userPrompt = context;
 
     // Broadcast turn change
@@ -360,8 +364,8 @@ REASONING: [Your detailed reasoning for the decision]`;
         const winnerMatch = fullJudgment.match(/WINNER:\s*([^\n]+)/i);
         const reasoningMatch = fullJudgment.match(/REASONING:\s*([\\s\\S]+)/i);
 
-        const winner = winnerMatch ? winnerMatch[1].trim() : 'Unable to determine';
-        const reasoning = reasoningMatch ? reasoningMatch[1].trim() : fullJudgment;
+        const winner = winnerMatch ? winnerMatch[1]?.trim() ?? 'Unable to determine' : 'Unable to determine';
+        const reasoning = reasoningMatch ? reasoningMatch[1]?.trim() ?? fullJudgment : fullJudgment;
 
         sessionManager.updateSession(this.sessionId, {
           phase: 'complete',

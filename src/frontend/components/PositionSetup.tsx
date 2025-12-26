@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import type { Participant } from '../../shared/types';
 import { SearchableSelect } from './SearchableSelect';
+import { getColorStyles } from '../utils/colors';
 
 interface Props {
   sessionId: string;
   positions: string[];
-  onConfirm: (participants: Participant[], maxRounds: number) => void;
+  onConfirm: (participants: Participant[], maxRounds: number, customSystemPrompt: string) => void;
 }
 
 const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
@@ -36,22 +37,6 @@ const truncate = (str: string, maxLength: number = 50) => {
   return str.substring(0, maxLength) + '...';
 };
 
-const getColorStyles = (color: string) => {
-  const styles: Record<string, string> = {
-    blue: 'bg-blue-500',
-    red: 'bg-red-500',
-    green: 'bg-green-500',
-    purple: 'bg-purple-500',
-    orange: 'bg-orange-500',
-    pink: 'bg-pink-500',
-    cyan: 'bg-cyan-500',
-    teal: 'bg-teal-500',
-    indigo: 'bg-indigo-500',
-    amber: 'bg-amber-500',
-  };
-  return styles[color] || 'bg-gray-500';
-};
-
 export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
   const [editablePositions, setEditablePositions] = useState(positions);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -66,6 +51,9 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
     }));
   });
   const [maxRounds, setMaxRounds] = useState(3);
+  const [customSystemPrompt, setCustomSystemPrompt] = useState(
+    'You are a skilled debater. Argue your position persuasively, but remain respectful. Respond to others\' points with logic and evidence.'
+  );
   const [loading, setLoading] = useState(false);
   const [judgeModel, setJudgeModel] = useState<string>(DEFAULT_MODEL);
 
@@ -161,7 +149,7 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
     console.log('[PositionSetup] Confirming with participants:', participants);
 
     // Update parent state with participants BEFORE sending to backend
-    onConfirm(participants, maxRounds);
+    onConfirm(participants, maxRounds, customSystemPrompt);
 
     try {
       await fetch(`/api/session/${sessionId}/confirm`, {
@@ -171,6 +159,7 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
           participants,
           maxRounds,
           judgeModel,
+          customSystemPrompt,
         }),
       });
     } catch (error) {
@@ -226,7 +215,7 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
               <div className="flex-1 space-y-2">
                 <div className="flex gap-2 items-center">
                   <div 
-                    className={`w-6 h-6 rounded-full flex-shrink-0 ${getColorStyles(a.color)}`}
+                    className={`w-6 h-6 rounded-full flex-shrink-0 ${getColorStyles(a.color).bgSolid}`}
                     title={`Assigned Color: ${a.color}`}
                   />
                   <input
@@ -304,6 +293,21 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
         </label>
         <p className="text-sm text-gray-600 mt-1">
           This AI model will evaluate the debate and decide the winner
+        </p>
+      </div>
+
+      <div className="mb-8">
+        <label className="flex flex-col gap-2">
+          <span className="font-semibold">Participant System Prompt:</span>
+          <textarea
+            value={customSystemPrompt}
+            onChange={(e) => setCustomSystemPrompt(e.target.value)}
+            className="w-full h-32 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
+            placeholder="Enter instructions for all participants..."
+          />
+        </label>
+        <p className="text-sm text-gray-600 mt-1">
+          This prompt will be given to all participating models to guide their behavior and persona
         </p>
       </div>
 

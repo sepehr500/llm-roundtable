@@ -81,9 +81,9 @@ function App() {
           <PositionSetup
             sessionId={sessionId}
             positions={state.suggestedPositions}
-            onConfirm={(participants, maxRounds) => {
-              console.log('[App] Setting participants and maxRounds in state:', participants.length, maxRounds);
-              setState(s => ({ ...s, participants, maxRounds }));
+            onConfirm={(participants, maxRounds, customSystemPrompt) => {
+              console.log('[App] Setting participants, maxRounds, and customSystemPrompt in state:', participants.length, maxRounds);
+              setState(s => ({ ...s, participants, maxRounds, customSystemPrompt }));
             }}
           />
         )}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Streamdown } from 'streamdown';
+import { getColorStyles } from '../utils/colors';
 import type { Participant, Message } from '../../shared/types';
 
 interface Props {
@@ -25,28 +26,27 @@ export function ResearchPhase({ participants, messages, streamingMessages }: Pro
           );
           const isStreaming = streamingMessages.has(participant.id);
           const streamContent = streamingMessages.get(participant.id) || '';
+          const colorStyles = getColorStyles(participant.color);
 
           return (
             <div
               key={participant.id}
               className={`border-l-4 p-4 rounded-r-lg ${
-                participantMessage
-                  ? 'border-green-500 bg-green-50'
-                  : isStreaming
-                  ? 'border-blue-500 bg-blue-50 animate-pulse'
+                participantMessage || isStreaming
+                  ? colorStyles.container
                   : 'border-gray-300 bg-gray-50'
-              }`}
+              } ${isStreaming ? 'animate-pulse' : ''}`}
             >
               <div className="flex items-center gap-3 mb-2">
                 <strong className="text-gray-900">{participant.name}</strong>
                 <span className="text-sm text-gray-600">{participant.position}</span>
                 {isStreaming && (
-                  <span className="text-xs text-blue-600 italic ml-auto">
+                  <span className={`text-xs italic ml-auto ${colorStyles.text}`}>
                     researching...
                   </span>
                 )}
                 {participantMessage && (
-                  <span className="text-xs text-green-600 ml-auto">✓ Complete</span>
+                  <span className={`text-xs ${colorStyles.text} ml-auto`}>✓ Complete</span>
                 )}
               </div>
               {(participantMessage || isStreaming) && (
