@@ -1,6 +1,14 @@
 # 🎭 LLM Roundtable
 
+<p align="center">
+  <img src="assets/hero.png" alt="LLM Roundtable" width="600">
+</p>
+
 A debate platform where multiple AI language models engage in structured debates on any topic. AI models take opposing positions, argue their case, and are judged by a panel of three independent AI judges.
+
+<p align="center">
+  <img src="assets/screenshot.png" alt="Debate Results" width="800">
+</p>
 
 [![Built with Bun](https://img.shields.io/badge/Built%20with-Bun-black?logo=bun)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
