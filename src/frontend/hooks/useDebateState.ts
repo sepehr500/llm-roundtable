@@ -53,6 +53,11 @@ export function useDebateState() {
         setStreamingMessages(new Map([[wsMessage.participantId, '']]));
         break;
 
+      case 'round-change':
+        console.log('[useDebateState] Round change to:', wsMessage.round);
+        setState((s) => ({ ...s, roundNumber: wsMessage.round }));
+        break;
+
       case 'stream-chunk':
         setStreamingMessages((prev) => {
           const updated = new Map(prev);

@@ -291,10 +291,42 @@ function App() {
               </div>
             </div>
 
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center space-x-4">
+              <button
+                onClick={() => {
+                   const formatTime = (ts: number) => new Date(ts).toLocaleTimeString();
+                   const transcript = state.messages.map(m => {
+                     const p = state.participants.find(p => p.id === m.participantId);
+                     const role = p ? `${p.name} (${p.position})` : 'System';
+                     return `[${formatTime(m.timestamp)}] ${role}:\n${m.content}\n\n`;
+                   }).join('---\n\n');
+
+                   const judges = state.votingResult?.verdicts.map(v => 
+                      `JUDGE: ${v.judgeName} (${v.model})\nVOTE: ${v.winner}\nREASONING:\n${v.reasoning}\n`
+                   ).join('\n---\n\n') || '';
+
+                   const summary = state.votingResult?.judgeSummary ? 
+                     `CONSENSUS SUMMARY:\n${state.votingResult.judgeSummary}\n\n` : '';
+
+                   const content = `DEBATE TRANSCRIPT\nTopic: ${state.topic}\n\n${transcript}\n\n=== VERDICTS ===\n\n${summary}${judges}`;
+                   
+                   const blob = new Blob([content], { type: 'text/plain' });
+                   const url = URL.createObjectURL(blob);
+                   const a = document.createElement('a');
+                   a.href = url;
+                   a.download = `debate-transcript-${new Date().toISOString().slice(0,10)}.txt`;
+                   document.body.appendChild(a);
+                   a.click();
+                   document.body.removeChild(a);
+                   URL.revokeObjectURL(url);
+                }}
+                className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Download Transcript
+              </button>
               <button
                 onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 Start New Debate
               </button>

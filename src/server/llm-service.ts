@@ -39,7 +39,7 @@ export async function streamLLMResponse(
         experimental_providerMetadata: {
           openrouter: {
             reasoning: {
-              effort: 'high'  // Enable reasoning with high effort
+              effort: 'medium'  // Enable reasoning with medium effort
             }
           }
         }
@@ -127,7 +127,7 @@ export async function getStructuredLLMResponse<T>(
         experimental_providerMetadata: {
           openrouter: {
             reasoning: {
-              effort: 'high'
+              effort: 'medium'
             }
           }
         }

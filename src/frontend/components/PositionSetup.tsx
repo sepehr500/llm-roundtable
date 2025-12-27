@@ -58,7 +58,7 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
   const [judgeModels, setJudgeModels] = useState<[string, string, string]>([
     'anthropic/claude-opus-4.5', 
     'google/gemini-3-pro-preview', 
-    'moonshotai/kimi-k2-thinking'
+    'deepseek/deepseek-v3.2'
   ]);
   const [useSameJudgeModel, setUseSameJudgeModel] = useState(false);
 

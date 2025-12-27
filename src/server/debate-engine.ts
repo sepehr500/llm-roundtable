@@ -243,6 +243,12 @@ Give a compelling 2-3 minute opening statement for your position. Your statement
     for (let round = 1; round <= state.maxRounds; round++) {
       sessionManager.updateSession(this.sessionId, { roundNumber: round });
 
+      // Broadcast round change
+      sessionManager.broadcast(this.sessionId, { 
+        type: 'round-change', 
+        round: round 
+      });
+
       for (let i = 0; i < state.participants.length; i++) {
         const participant = state.participants[i];
         if (participant) {

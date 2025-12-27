@@ -76,6 +76,7 @@ export type WSMessage =
   | { type: 'stream-complete', participantId: string, messageType?: string }
   | { type: 'phase-change', phase: DebatePhase }
   | { type: 'turn-change', participantId: string }
+  | { type: 'round-change', round: number }
   | { type: 'positions-generated', positions: string[], topic: string }
   | { type: 'judge-complete', judgeId: string, winner: string, reasoning: string }
   | { type: 'debate-complete', votingResult: VotingResult }
