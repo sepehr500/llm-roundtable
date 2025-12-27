@@ -365,6 +365,9 @@ Keep your response focused and impactful (2-3 paragraphs).`;
       .map(p => `- ${p.position}`)
       .join('\n');
 
+    // Extract positions as an array for enum validation
+    const validPositions = state.participants.map(p => p.position);
+
     const systemPrompt = `You are a neutral, experienced debate judge. Evaluate debates based on argument quality, evidence, and persuasiveness.`;
     const userPrompt = `Topic: ${state.topic}
 
@@ -386,7 +389,7 @@ Format your reasoning using markdown with:
 - Bullet points or numbered lists for clarity
 - Quote blocks (>) for citing specific arguments`;
 
-    // Define typed JSON schema for the judge verdict
+    // Define typed JSON schema for the judge verdict with enum enforcement
     const judgmentSchema = jsonSchema<{
       winner: string;
       reasoning: string;
@@ -395,7 +398,8 @@ Format your reasoning using markdown with:
       properties: {
         winner: {
           type: "string",
-          description: "The exact position from the list above that you believe won the debate"
+          enum: validPositions,
+          description: "The position that won the debate - must be exactly one of the valid positions"
         },
         reasoning: {
           type: "string",
@@ -411,7 +415,7 @@ Format your reasoning using markdown with:
       const judgeId = `judge-${index + 1}`;
       const judgeName = `Judge ${index + 1}`;
 
-      // Use structured output with enforced JSON schema
+      // Use structured output with enforced JSON schema (enum guarantees valid position)
       const result = await getStructuredLLMResponse(
         model,
         systemPrompt,
@@ -419,31 +423,9 @@ Format your reasoning using markdown with:
         judgmentSchema
       );
 
-      let winner = result.winner?.trim() || 'Unable to determine';
+      // Thanks to enum enforcement, winner is guaranteed to be a valid position
+      const winner = result.winner?.trim() || 'Unable to determine';
       const reasoning = result.reasoning?.trim() || 'No reasoning provided';
-
-      // Validate winner is one of the actual positions
-      if (winner !== 'Unable to determine') {
-        const matchedParticipant = state.participants.find(p =>
-          p.position.toLowerCase() === winner.toLowerCase()
-        );
-
-        if (matchedParticipant) {
-          winner = matchedParticipant.position; // Use exact position text
-        } else {
-          // Try fuzzy matching as fallback
-          const normalizedWinner = winner.toLowerCase();
-          const fuzzyMatch = state.participants.find(p => {
-            const posLower = p.position.toLowerCase();
-            return posLower.includes(normalizedWinner) || normalizedWinner.includes(posLower);
-          });
-          if (fuzzyMatch) {
-            winner = fuzzyMatch.position;
-          } else {
-            console.warn(`[Judge ${index + 1}] Could not match winner "${winner}" to any participant position`);
-          }
-        }
-      }
 
       // Broadcast completion
       sessionManager.broadcast(this.sessionId, {
