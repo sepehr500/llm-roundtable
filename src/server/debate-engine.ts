@@ -343,53 +343,105 @@ Format your response as:
 WINNER: [Position]
 REASONING: [Your detailed reasoning for the decision]`;
 
-    let fullJudgment = '';
+    // Run all 3 judges in parallel
+    const judgePromises = state.judgeModels.map(async (model, index) => {
+      const judgeId = `judge-${index + 1}`;
+      const judgeName = `Judge ${index + 1}`;
+      let fullJudgment = '';
 
-    const judgeModel = state.judgeModel || 'google/gemini-3-flash-preview'; // Fallback check
+      await streamLLMResponse(
+        model,
+        systemPrompt,
+        userPrompt,
+        (chunk) => {
+          fullJudgment += chunk;
+          sessionManager.broadcast(this.sessionId, {
+            type: 'stream-chunk',
+            participantId: judgeId,
+            chunk
+          });
+        },
+        () => {
+          sessionManager.broadcast(this.sessionId, {
+            type: 'stream-complete',
+            participantId: judgeId,
+            messageType: 'judgment'
+          });
+        }
+      );
 
-    await streamLLMResponse(
-      judgeModel,
-      systemPrompt,
-      userPrompt,
-      (chunk) => {
-        fullJudgment += chunk;
-        sessionManager.broadcast(this.sessionId, {
-          type: 'stream-chunk',
-          participantId: 'judge',
-          chunk
-        });
-      },
-      () => {
-        // Extract winner from judgment
-        const winnerMatch = fullJudgment.match(/WINNER:\s*([^\n]+)/i);
-        const reasoningMatch = fullJudgment.match(/REASONING:\s*([\\s\\S]+)/i);
+      // Extract winner from judgment
+      const winnerMatch = fullJudgment.match(/WINNER:\s*([^\n]+)/i);
+      const reasoningMatch = fullJudgment.match(/REASONING:\s*([\\s\\S]+)/i);
 
-        const winner = winnerMatch ? winnerMatch[1]?.trim() ?? 'Unable to determine' : 'Unable to determine';
-        const reasoning = reasoningMatch ? reasoningMatch[1]?.trim() ?? fullJudgment : fullJudgment;
+      // Clean up winner string: remove markdown formatting and extra punctuation
+      let winner = winnerMatch ? winnerMatch[1]?.trim() ?? 'Unable to determine' : 'Unable to determine';
+      if (winner !== 'Unable to determine') {
+        // Remove markdown bold/italic markers
+        winner = winner.replace(/\*\*/g, '').replace(/\*/g, '').replace(/__/g, '').replace(/_/g, '');
+        // Remove trailing punctuation and whitespace
+        winner = winner.replace(/[.:;,!?]+$/, '').trim();
 
-        sessionManager.updateSession(this.sessionId, {
-          phase: 'complete',
-          winner,
-          judgeReasoning: reasoning
-        });
-
-        sessionManager.broadcast(this.sessionId, {
-          type: 'stream-complete',
-          participantId: 'judge',
-          messageType: 'judgment'
-        });
-
-        sessionManager.broadcast(this.sessionId, {
-          type: 'debate-complete',
-          winner,
-          judgeReasoning: reasoning
-        });
-
-        sessionManager.broadcast(this.sessionId, {
-          type: 'phase-change',
-          phase: 'complete'
-        });
+        // Try to match to an actual debate position (case-insensitive partial match)
+        const normalizedWinner = winner.toLowerCase();
+        const matchedPosition = state.confirmedPositions.find(pos =>
+          normalizedWinner.includes(pos.toLowerCase()) || pos.toLowerCase().includes(normalizedWinner)
+        );
+        if (matchedPosition) {
+          winner = matchedPosition;
+        }
       }
-    );
+
+      const reasoning = reasoningMatch ? reasoningMatch[1]?.trim() ?? fullJudgment : fullJudgment;
+
+      return {
+        judgeId,
+        judgeName,
+        model,
+        winner,
+        reasoning,
+        fullResponse: fullJudgment
+      };
+    });
+
+    // Wait for all judges to complete
+    const verdicts = await Promise.all(judgePromises);
+
+    // Aggregate votes
+    const voteCounts: Record<string, number> = {};
+    for (const verdict of verdicts) {
+      voteCounts[verdict.winner] = (voteCounts[verdict.winner] || 0) + 1;
+    }
+
+    // Find winner (needs 2+ votes)
+    const winnerEntry = Object.entries(voteCounts)
+      .find(([_, count]) => count >= 2);
+
+    const winner = winnerEntry ? winnerEntry[0] : null;
+    const isTie = winner === null;
+
+    const votingResult = {
+      winner,
+      isTie,
+      voteCounts,
+      verdicts
+    };
+
+    // Update session with voting result
+    sessionManager.updateSession(this.sessionId, {
+      phase: 'complete',
+      votingResult
+    });
+
+    // Broadcast results
+    sessionManager.broadcast(this.sessionId, {
+      type: 'debate-complete',
+      votingResult
+    });
+
+    sessionManager.broadcast(this.sessionId, {
+      type: 'phase-change',
+      phase: 'complete'
+    });
   }
 }

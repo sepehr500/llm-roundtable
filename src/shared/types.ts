@@ -32,6 +32,24 @@ export interface Message {
   messageType: 'statement' | 'question' | 'response' | 'research' | 'judgment';
 }
 
+// Individual judge verdict
+export interface JudgeVerdict {
+  judgeId: string;         // e.g., 'judge-1', 'judge-2', 'judge-3'
+  judgeName: string;       // Display name
+  model: string;           // AI model used
+  winner: string;          // Position this judge voted for
+  reasoning: string;       // Extracted reasoning
+  fullResponse: string;    // Complete response
+}
+
+// Voting result with all verdicts
+export interface VotingResult {
+  winner: string | null;   // Winning position or null if tie
+  isTie: boolean;
+  voteCounts: Record<string, number>;  // Position -> vote count
+  verdicts: JudgeVerdict[];
+}
+
 // Complete debate session state
 export interface DebateState {
   sessionId: string;
@@ -45,10 +63,9 @@ export interface DebateState {
   roundNumber: number;
   maxRounds: number;
   researchComplete: Set<string>; // Participant IDs who finished research
-  judgeModel?: string;           // Model used for judging
+  judgeModels: string[];         // Array of 3 judge models
   customSystemPrompt?: string;   // Optional custom system prompt for participants
-  winner?: string;
-  judgeReasoning?: string;
+  votingResult?: VotingResult;   // Complete voting result with all verdicts
 }
 
 // WebSocket Message Protocol
@@ -59,5 +76,5 @@ export type WSMessage =
   | { type: 'phase-change', phase: DebatePhase }
   | { type: 'turn-change', participantId: string }
   | { type: 'positions-generated', positions: string[], topic: string }
-  | { type: 'debate-complete', winner: string, judgeReasoning: string }
+  | { type: 'debate-complete', votingResult: VotingResult }
   | { type: 'error', message: string };

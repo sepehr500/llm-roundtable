@@ -27,7 +27,7 @@ class SessionManager {
       roundNumber: 1,
       maxRounds: 3,
       researchComplete: new Set(),
-      judgeModel: 'google/gemini-2.0-flash-exp:free', // Default judge model
+      judgeModels: ['google/gemini-2.0-flash-exp:free', 'google/gemini-2.0-flash-exp:free', 'google/gemini-2.0-flash-exp:free'], // Default judge models
     });
 
     return sessionId;

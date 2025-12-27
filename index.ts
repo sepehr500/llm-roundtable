@@ -121,7 +121,7 @@ const server = Bun.serve<{ sessionId: string | null }>({
         if (!sessionId) {
           return Response.json({ error: "Session ID required" }, { status: 400 });
         }
-        const { participants, maxRounds, judgeModel, customSystemPrompt } = await req.json();
+        const { participants, maxRounds, judgeModels, customSystemPrompt } = await req.json();
         const state = sessionManager.getSession(sessionId);
 
         if (!state) {
@@ -130,8 +130,8 @@ const server = Bun.serve<{ sessionId: string | null }>({
 
         state.participants = participants;
         state.maxRounds = maxRounds;
-        if (judgeModel) {
-          state.judgeModel = judgeModel;
+        if (judgeModels && Array.isArray(judgeModels) && judgeModels.length === 3) {
+          state.judgeModels = judgeModels;
         }
         if (customSystemPrompt) {
           state.customSystemPrompt = customSystemPrompt;

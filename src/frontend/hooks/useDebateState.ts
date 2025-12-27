@@ -17,6 +17,7 @@ export function useDebateState() {
     roundNumber: 1,
     maxRounds: 3,
     researchComplete: new Set(),
+    judgeModels: ['google/gemini-3-flash-preview', 'google/gemini-3-flash-preview', 'google/gemini-3-flash-preview'],
   });
 
   const [streamingMessages, setStreamingMessages] = useState<Map<string, string>>(
@@ -62,10 +63,11 @@ export function useDebateState() {
         // Use setStreamingMessages callback to get current value, then clear it
         setStreamingMessages((prev) => {
           const finalContent = prev.get(wsMessage.participantId) || '';
-          console.log('[useDebateState] Final content length:', finalContent.length, 'participantId:', wsMessage.participantId, 'isJudge:', wsMessage.participantId === 'judge');
+          const isJudge = wsMessage.participantId.startsWith('judge-');
+          console.log('[useDebateState] Final content length:', finalContent.length, 'participantId:', wsMessage.participantId, 'isJudge:', isJudge);
 
-          // Only add to messages if there's content and it's not the judge
-          if (finalContent && wsMessage.participantId !== 'judge') {
+          // Only add to messages if there's content and it's not a judge
+          if (finalContent && !isJudge) {
             console.log('[useDebateState] Adding message to state');
             setState((s) => {
               const newMessage: Message = {
@@ -85,7 +87,7 @@ export function useDebateState() {
               };
             });
           } else {
-            console.log('[useDebateState] NOT adding message - content:', !!finalContent, 'isJudge:', wsMessage.participantId === 'judge');
+            console.log('[useDebateState] NOT adding message - content:', !!finalContent, 'isJudge:', isJudge);
           }
 
           // Remove from streaming messages
@@ -97,11 +99,10 @@ export function useDebateState() {
       }
 
       case 'debate-complete':
-        console.log('[useDebateState] Debate complete, winner:', wsMessage.winner);
+        console.log('[useDebateState] Debate complete, voting result:', wsMessage.votingResult);
         setState((s) => ({
           ...s,
-          winner: wsMessage.winner,
-          judgeReasoning: wsMessage.judgeReasoning,
+          votingResult: wsMessage.votingResult,
         }));
         break;
 

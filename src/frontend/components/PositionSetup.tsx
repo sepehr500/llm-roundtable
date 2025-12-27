@@ -55,7 +55,8 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
     'You are a skilled debater. Argue your position persuasively, but remain respectful. Respond to others\' points with logic and evidence.'
   );
   const [loading, setLoading] = useState(false);
-  const [judgeModel, setJudgeModel] = useState<string>(DEFAULT_MODEL);
+  const [judgeModels, setJudgeModels] = useState<[string, string, string]>([DEFAULT_MODEL, DEFAULT_MODEL, DEFAULT_MODEL]);
+  const [useSameJudgeModel, setUseSameJudgeModel] = useState(true);
 
   useEffect(() => {
     fetch('/api/models')
@@ -158,7 +159,7 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
         body: JSON.stringify({
           participants,
           maxRounds,
-          judgeModel,
+          judgeModels,
           customSystemPrompt,
         }),
       });
@@ -282,18 +283,54 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
       </div>
 
       <div className="mb-8">
-        <label className="flex flex-col gap-2">
-          <span className="font-semibold">Debate Judge Model:</span>
-          <SearchableSelect
-            value={judgeModel}
-            onChange={setJudgeModel}
-            options={availableModels.length > 0 ? availableModels : [DEFAULT_MODEL]}
-            placeholder="Select judge model..."
-          />
-        </label>
-        <p className="text-sm text-gray-600 mt-1">
-          This AI model will evaluate the debate and decide the winner
+        <h3 className="text-lg font-semibold mb-3">Debate Judges</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          Three judges will independently evaluate the debate and vote on the winner
         </p>
+
+        <div className="mb-4">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={useSameJudgeModel}
+              onChange={(e) => {
+                setUseSameJudgeModel(e.target.checked);
+                if (e.target.checked) {
+                  // When enabling, set all judges to the first judge's model
+                  setJudgeModels([judgeModels[0], judgeModels[0], judgeModels[0]]);
+                }
+              }}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">Use same model for all judges</span>
+          </label>
+        </div>
+
+        <div className="space-y-3">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="flex flex-col gap-2">
+              <label className="flex items-center gap-2">
+                <span className="font-medium text-sm w-24">Judge {index + 1}:</span>
+                <SearchableSelect
+                  value={judgeModels[index]}
+                  onChange={(val) => {
+                    const newModels: [string, string, string] = [...judgeModels] as [string, string, string];
+                    newModels[index] = val;
+                    if (useSameJudgeModel) {
+                      // If using same model, update all judges
+                      setJudgeModels([val, val, val]);
+                    } else {
+                      setJudgeModels(newModels);
+                    }
+                  }}
+                  options={availableModels.length > 0 ? availableModels : [DEFAULT_MODEL]}
+                  placeholder="Select judge model..."
+                  className="flex-1"
+                />
+              </label>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mb-8">

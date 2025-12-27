@@ -50,8 +50,12 @@ function App() {
     );
   }
 
-  // Get streaming content for judge
-  const judgeStreamContent = streamingMessages.get('judge') || '';
+  // Get streaming content for all 3 judges
+  const judgeStreams = {
+    'judge-1': streamingMessages.get('judge-1') || '',
+    'judge-2': streamingMessages.get('judge-2') || '',
+    'judge-3': streamingMessages.get('judge-3') || '',
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -197,7 +201,10 @@ function App() {
         )}
 
         {state.phase === 'judging' && (
-          <JudgingView streamingContent={judgeStreamContent} />
+          <JudgingView
+            judgeStreams={judgeStreams}
+            judgeModels={state.judgeModels || ['google/gemini-3-flash-preview', 'google/gemini-3-flash-preview', 'google/gemini-3-flash-preview']}
+          />
         )}
 
         {state.phase === 'complete' && (
@@ -206,22 +213,51 @@ function App() {
               Debate Complete!
             </h2>
 
-            <div className="mb-8 p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
-              <div className="text-sm text-blue-600 font-semibold mb-2">
-                WINNER
-              </div>
-              <div className="text-2xl font-bold text-blue-900">
-                {state.winner}
-              </div>
-            </div>
-
-            {state.judgeReasoning && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-3">Judge's Reasoning</h3>
-                <div className="p-4 bg-gray-50 rounded-lg text-gray-700 prose prose-sm max-w-none">
-                  <Streamdown>{state.judgeReasoning}</Streamdown>
+            {state.votingResult && (
+              <>
+                <div className={`mb-6 p-6 rounded-lg border-2 ${state.votingResult.isTie ? 'bg-gray-50 border-gray-300' : 'bg-blue-50 border-blue-200'}`}>
+                  <div className={`text-sm font-semibold mb-2 ${state.votingResult.isTie ? 'text-gray-600' : 'text-blue-600'}`}>
+                    {state.votingResult.isTie ? 'TIE - NO MAJORITY' : 'WINNER'}
+                  </div>
+                  <div className={`text-2xl font-bold ${state.votingResult.isTie ? 'text-gray-700' : 'text-blue-900'}`}>
+                    {state.votingResult.isTie ? 'No position received majority votes' : state.votingResult.winner}
+                  </div>
                 </div>
-              </div>
+
+                <div className="mb-8 p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-semibold mb-3">Vote Tally</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(state.votingResult.voteCounts).map(([position, count]) => (
+                      <div key={position} className="px-4 py-2 bg-white rounded-lg border border-blue-200">
+                        <span className="font-semibold">{position}:</span>
+                        <span className="ml-2 text-blue-600 font-bold">{count} vote{count !== 1 ? 's' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-4">Judge Verdicts</h3>
+                  <div className="space-y-3">
+                    {state.votingResult.verdicts.map((verdict) => (
+                      <div key={verdict.judgeId} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <strong className="text-gray-900">{verdict.judgeName}</strong>
+                            <span className="text-sm text-gray-500 ml-2">({verdict.model})</span>
+                          </div>
+                          <div className="text-sm font-semibold text-blue-600">
+                            Voted for: {verdict.winner}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-700">
+                          <Streamdown>{verdict.reasoning}</Streamdown>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="mb-8">
