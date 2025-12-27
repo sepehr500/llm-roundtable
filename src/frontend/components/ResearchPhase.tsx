@@ -7,19 +7,41 @@ interface Props {
   participants: Participant[];
   messages: Message[];
   streamingMessages: Map<string, string>;
+  onNext?: () => void;
+  nextLabel?: string;
+  statusMessage?: string;
 }
 
-export function ResearchPhase({ participants, messages, streamingMessages }: Props) {
+export function ResearchPhase({ participants, messages, streamingMessages, onNext, nextLabel, statusMessage }: Props) {
   const researchMessages = messages.filter((m) => m.messageType === 'research');
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <h2 className="text-2xl font-bold mb-4">Research Phase</h2>
-      <p className="text-gray-600 mb-6">
-        Each participant is researching and preparing their arguments...
-      </p>
+    <div className="bg-white rounded-lg shadow-lg h-full flex flex-col relative">
+      <div className="border-b border-gray-200 p-6 bg-gray-50/50 flex justify-between items-start gap-4 shrink-0">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Research Phase</h2>
+          <p className="text-gray-600 mt-1">
+            Each participant is researching and preparing their arguments...
+          </p>
+        </div>
+        {onNext && (
+          <div className="flex flex-col items-end gap-2">
+            {statusMessage && (
+              <span className="text-sm font-medium text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                {statusMessage}
+              </span>
+            )}
+            <button
+              onClick={onNext}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-sm whitespace-nowrap"
+            >
+              {nextLabel || 'Next'}
+            </button>
+          </div>
+        )}
+      </div>
 
-      <div className="space-y-4">
+      <div className="flex-1 overflow-y-auto p-8 space-y-4">
         {participants.map((participant) => {
           const participantMessage = researchMessages.find(
             (m) => m.participantId === participant.id

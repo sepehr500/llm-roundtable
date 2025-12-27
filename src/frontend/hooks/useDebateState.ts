@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { DebateState, Message, DebatePhase } from '../../shared/types.ts';
+import type { DebateState, Message, DebatePhase, JudgeVerdict } from '../../shared/types.ts';
 
 /**
  * Hook to manage debate state and handle WebSocket updates
@@ -21,6 +21,11 @@ export function useDebateState() {
   });
 
   const [streamingMessages, setStreamingMessages] = useState<Map<string, string>>(
+    new Map()
+  );
+
+  // Store completed judge verdicts temporarily until all judges complete
+  const [judgeVerdicts, setJudgeVerdicts] = useState<Map<string, { winner: string, reasoning: string }>>(
     new Map()
   );
 
@@ -98,12 +103,26 @@ export function useDebateState() {
         break;
       }
 
+      case 'judge-complete':
+        console.log('[useDebateState] Judge complete:', wsMessage.judgeId, 'voted for:', wsMessage.winner);
+        setJudgeVerdicts((prev) => {
+          const updated = new Map(prev);
+          updated.set(wsMessage.judgeId, {
+            winner: wsMessage.winner,
+            reasoning: wsMessage.reasoning,
+          });
+          return updated;
+        });
+        break;
+
       case 'debate-complete':
         console.log('[useDebateState] Debate complete, voting result:', wsMessage.votingResult);
         setState((s) => ({
           ...s,
           votingResult: wsMessage.votingResult,
         }));
+        // Clear judge verdicts on debate complete
+        setJudgeVerdicts(new Map());
         break;
 
       case 'error':
@@ -115,5 +134,5 @@ export function useDebateState() {
     }
   }, []); // Empty dependency array since we use callback form everywhere
 
-  return { state, streamingMessages, updateState, setState };
+  return { state, streamingMessages, judgeVerdicts, updateState, setState };
 }

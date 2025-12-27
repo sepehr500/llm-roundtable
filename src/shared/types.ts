@@ -76,5 +76,6 @@ export type WSMessage =
   | { type: 'phase-change', phase: DebatePhase }
   | { type: 'turn-change', participantId: string }
   | { type: 'positions-generated', positions: string[], topic: string }
+  | { type: 'judge-complete', judgeId: string, winner: string, reasoning: string }
   | { type: 'debate-complete', votingResult: VotingResult }
   | { type: 'error', message: string };

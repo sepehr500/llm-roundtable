@@ -92,5 +92,5 @@ const styles: Record<string, ColorStyles> = {
 };
 
 export const getColorStyles = (color: string = 'blue'): ColorStyles => {
-  return styles[color] || styles.blue;
+  return styles[color] || styles.blue!;
 };

@@ -6,7 +6,7 @@ import { getColorStyles } from '../utils/colors';
 interface Props {
   sessionId: string;
   positions: string[];
-  onConfirm: (participants: Participant[], maxRounds: number, customSystemPrompt: string) => void;
+  onConfirm: (participants: Participant[], maxRounds: number, customSystemPrompt: string, judgeModels: [string, string, string]) => void;
 }
 
 const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
@@ -150,7 +150,7 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
     console.log('[PositionSetup] Confirming with participants:', participants);
 
     // Update parent state with participants BEFORE sending to backend
-    onConfirm(participants, maxRounds, customSystemPrompt);
+    onConfirm(participants, maxRounds, customSystemPrompt, judgeModels);
 
     try {
       await fetch(`/api/session/${sessionId}/confirm`, {
@@ -170,191 +170,199 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <h2 className="text-2xl font-bold mb-6">Configure Debate</h2>
+    <div className="bg-white rounded-lg shadow-lg h-full flex flex-col relative">
+      <div className="border-b border-gray-200 p-6 bg-gray-50/50 flex justify-between items-center gap-4 shrink-0">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Configure Debate</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Setup positions, models, and rounds
+          </p>
+        </div>
+        <button
+          onClick={handleConfirm}
+          disabled={assignments.length < 2 || loading}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold shadow-sm whitespace-nowrap"
+        >
+          {loading ? 'Starting Debate...' : 'Start Debate'}
+        </button>
+      </div>
 
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-3">Positions</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Edit or add positions for the debate:
-        </p>
-        <div className="space-y-2">
-          {editablePositions.map((pos, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                value={pos}
-                onChange={(e) => handlePositionChange(i, e.target.value)}
-                className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              {editablePositions.length > 2 && (
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-3">Positions</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Edit or add positions for the debate:
+          </p>
+          <div className="space-y-2">
+            {editablePositions.map((pos, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  value={pos}
+                  onChange={(e) => handlePositionChange(i, e.target.value)}
+                  className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                />
+                {editablePositions.length > 2 && (
+                  <button
+                    onClick={() => handleRemovePosition(i)}
+                    className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={handleAddNewPosition}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              + Add Position
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-3">Assign Models to Positions</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Choose which AI model will argue each position:
+          </p>
+          <div className="space-y-3">
+            {assignments.map((a, i) => (
+              <div key={i} className="flex gap-2 items-start p-3 bg-gray-50 rounded">
+                <div className="flex-1 space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <div 
+                      className={`w-6 h-6 rounded-full flex-shrink-0 ${getColorStyles(a.color).bgSolid}`}
+                      title={`Assigned Color: ${a.color}`}
+                    />
+                    <input
+                      placeholder="Participant Name"
+                      value={a.name}
+                      onChange={(e) => handleUpdateAssignment(i, 'name', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={a.position}
+                      onChange={(e) => handleUpdateAssignment(i, 'position', e.target.value)}
+                      className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    >
+                      {editablePositions.map((p) => (
+                        <option key={p} value={p}>
+                          {truncate(p)}
+                        </option>
+                      ))}
+                    </select>
+                    <SearchableSelect
+                      value={a.model}
+                      onChange={(val) => handleUpdateAssignment(i, 'model', val)}
+                      options={availableModels.length > 0 ? availableModels : [DEFAULT_MODEL]}
+                      className="flex-1"
+                      placeholder="Select or type model..."
+                    />
+                  </div>
+                </div>
                 <button
-                  onClick={() => handleRemovePosition(i)}
+                  onClick={() => handleRemoveAssignment(i)}
                   className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200"
                 >
                   Remove
                 </button>
-              )}
-            </div>
-          ))}
-          <button
-            onClick={handleAddNewPosition}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-          >
-            + Add Position
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-3">Assign Models to Positions</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Choose which AI model will argue each position:
-        </p>
-        <div className="space-y-3">
-          {assignments.map((a, i) => (
-            <div key={i} className="flex gap-2 items-start p-3 bg-gray-50 rounded">
-              <div className="flex-1 space-y-2">
-                <div className="flex gap-2 items-center">
-                  <div 
-                    className={`w-6 h-6 rounded-full flex-shrink-0 ${getColorStyles(a.color).bgSolid}`}
-                    title={`Assigned Color: ${a.color}`}
-                  />
-                  <input
-                    placeholder="Participant Name"
-                    value={a.name}
-                    onChange={(e) => handleUpdateAssignment(i, 'name', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={a.position}
-                    onChange={(e) => handleUpdateAssignment(i, 'position', e.target.value)}
-                    className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  >
-                    {editablePositions.map((p) => (
-                      <option key={p} value={p}>
-                        {truncate(p)}
-                      </option>
-                    ))}
-                  </select>
-                  <SearchableSelect
-                    value={a.model}
-                    onChange={(val) => handleUpdateAssignment(i, 'model', val)}
-                    options={availableModels.length > 0 ? availableModels : [DEFAULT_MODEL]}
-                    className="flex-1"
-                    placeholder="Select or type model..."
-                  />
-                </div>
               </div>
-              <button
-                onClick={() => handleRemoveAssignment(i)}
-                className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={handleAddAssignment}
-            disabled={editablePositions.length === 0}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            + Add Participant
-          </button>
+            ))}
+            <button
+              onClick={handleAddAssignment}
+              disabled={editablePositions.length === 0}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + Add Participant
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="mb-8">
-        <label className="flex items-center gap-2">
-          <span className="font-semibold">Number of Debate Rounds:</span>
-          <input
-            type="number"
-            min={1}
-            max={10}
-            value={maxRounds}
-            onChange={(e) => setMaxRounds(parseInt(e.target.value) || 1)}
-            className="w-20 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          />
-        </label>
-        <p className="text-sm text-gray-600 mt-1">
-          Each participant will speak once per round
-        </p>
-      </div>
-
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-3">Debate Judges</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Three judges will independently evaluate the debate and vote on the winner
-        </p>
-
-        <div className="mb-4">
+        <div className="mb-8">
           <label className="flex items-center gap-2">
+            <span className="font-semibold">Number of Debate Rounds:</span>
             <input
-              type="checkbox"
-              checked={useSameJudgeModel}
-              onChange={(e) => {
-                setUseSameJudgeModel(e.target.checked);
-                if (e.target.checked) {
-                  // When enabling, set all judges to the first judge's model
-                  setJudgeModels([judgeModels[0], judgeModels[0], judgeModels[0]]);
-                }
-              }}
-              className="w-4 h-4"
+              type="number"
+              min={1}
+              max={10}
+              value={maxRounds}
+              onChange={(e) => setMaxRounds(parseInt(e.target.value) || 1)}
+              className="w-20 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
             />
-            <span className="text-sm">Use same model for all judges</span>
           </label>
+          <p className="text-sm text-gray-600 mt-1">
+            Each participant will speak once per round
+          </p>
         </div>
 
-        <div className="space-y-3">
-          {[0, 1, 2].map((index) => (
-            <div key={index} className="flex flex-col gap-2">
-              <label className="flex items-center gap-2">
-                <span className="font-medium text-sm w-24">Judge {index + 1}:</span>
-                <SearchableSelect
-                  value={judgeModels[index]}
-                  onChange={(val) => {
-                    const newModels: [string, string, string] = [...judgeModels] as [string, string, string];
-                    newModels[index] = val;
-                    if (useSameJudgeModel) {
-                      // If using same model, update all judges
-                      setJudgeModels([val, val, val]);
-                    } else {
-                      setJudgeModels(newModels);
-                    }
-                  }}
-                  options={availableModels.length > 0 ? availableModels : [DEFAULT_MODEL]}
-                  placeholder="Select judge model..."
-                  className="flex-1"
-                />
-              </label>
-            </div>
-          ))}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-3">Debate Judges</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Three judges will independently evaluate the debate and vote on the winner
+          </p>
+
+          <div className="mb-4 inline-block">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={useSameJudgeModel}
+                onChange={(e) => {
+                  setUseSameJudgeModel(e.target.checked);
+                  if (e.target.checked) {
+                    // When enabling, set all judges to the first judge's model
+                    setJudgeModels([judgeModels[0], judgeModels[0], judgeModels[0]]);
+                  }
+                }}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">Use same model for all judges</span>
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <label className="flex items-center gap-2">
+                  <span className="font-medium text-sm w-24">Judge {index + 1}:</span>
+                  <SearchableSelect
+                    value={judgeModels[index]}
+                    onChange={(val) => {
+                      const newModels: [string, string, string] = [...judgeModels] as [string, string, string];
+                      newModels[index] = val;
+                      if (useSameJudgeModel) {
+                        // If using same model, update all judges
+                        setJudgeModels([val, val, val]);
+                      } else {
+                        setJudgeModels(newModels);
+                      }
+                    }}
+                    options={availableModels.length > 0 ? availableModels : [DEFAULT_MODEL]}
+                    placeholder="Select judge model..."
+                    className="flex-1"
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <label className="flex flex-col gap-2">
+            <span className="font-semibold">Participant System Prompt:</span>
+            <textarea
+              value={customSystemPrompt}
+              onChange={(e) => setCustomSystemPrompt(e.target.value)}
+              className="w-full h-32 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="Enter instructions for all participants..."
+            />
+          </label>
+          <p className="text-sm text-gray-600 mt-1">
+            This prompt will be given to all participating models to guide their behavior and persona
+          </p>
         </div>
       </div>
-
-      <div className="mb-8">
-        <label className="flex flex-col gap-2">
-          <span className="font-semibold">Participant System Prompt:</span>
-          <textarea
-            value={customSystemPrompt}
-            onChange={(e) => setCustomSystemPrompt(e.target.value)}
-            className="w-full h-32 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
-            placeholder="Enter instructions for all participants..."
-          />
-        </label>
-        <p className="text-sm text-gray-600 mt-1">
-          This prompt will be given to all participating models to guide their behavior and persona
-        </p>
-      </div>
-
-      <button
-        onClick={handleConfirm}
-        disabled={assignments.length < 2 || loading}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-      >
-        {loading ? 'Starting Debate...' : 'Start Debate'}
-      </button>
     </div>
   );
 }

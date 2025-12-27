@@ -1,6 +1,7 @@
 import type { DebateState, Participant } from '../shared/types.ts';
 import { sessionManager } from './session-manager.ts';
-import { streamLLMResponse, getLLMResponse } from './llm-service.ts';
+import { streamLLMResponse, getLLMResponse, getStructuredLLMResponse } from './llm-service.ts';
+import { jsonSchema } from 'ai';
 
 /**
  * Core debate orchestration engine
@@ -327,8 +328,16 @@ Keep your response focused and impactful (2-3 paragraphs).`;
         return `${p?.name} (${p?.position}): ${m.content}`;
       }).join('\n\n---\n\n');
 
+    // Create a list of valid positions for the judges to choose from
+    const positionsList = state.participants
+      .map(p => `- ${p.position}`)
+      .join('\n');
+
     const systemPrompt = `You are a neutral, experienced debate judge. Evaluate debates based on argument quality, evidence, and persuasiveness.`;
     const userPrompt = `Topic: ${state.topic}
+
+Valid Positions (you must vote for one of these exactly as written):
+${positionsList}
 
 Debate Transcript:
 ${transcript}
@@ -339,60 +348,78 @@ As a neutral judge, evaluate this debate and determine the winner. Consider:
 - Persuasiveness and rhetoric
 - Responses to counterarguments
 
-Format your response as:
-WINNER: [Position]
-REASONING: [Your detailed reasoning for the decision]`;
+Format your reasoning using markdown with:
+- **Bold** for emphasis on key points
+- Headers (##, ###) to organize your analysis
+- Bullet points or numbered lists for clarity
+- Quote blocks (>) for citing specific arguments`;
 
-    // Run all 3 judges in parallel
+    // Define typed JSON schema for the judge verdict
+    const judgmentSchema = jsonSchema<{
+      winner: string;
+      reasoning: string;
+    }>({
+      type: "object",
+      properties: {
+        winner: {
+          type: "string",
+          description: "The exact position from the list above that you believe won the debate"
+        },
+        reasoning: {
+          type: "string",
+          description: "Your detailed reasoning for why this position won, formatted in markdown with headers, bold text, lists, and quotes for readability"
+        }
+      },
+      required: ["winner", "reasoning"],
+      additionalProperties: false
+    });
+
+    // Run all 3 judges in parallel with structured output
     const judgePromises = state.judgeModels.map(async (model, index) => {
       const judgeId = `judge-${index + 1}`;
       const judgeName = `Judge ${index + 1}`;
-      let fullJudgment = '';
 
-      await streamLLMResponse(
+      // Use structured output with enforced JSON schema
+      const result = await getStructuredLLMResponse(
         model,
         systemPrompt,
         userPrompt,
-        (chunk) => {
-          fullJudgment += chunk;
-          sessionManager.broadcast(this.sessionId, {
-            type: 'stream-chunk',
-            participantId: judgeId,
-            chunk
-          });
-        },
-        () => {
-          sessionManager.broadcast(this.sessionId, {
-            type: 'stream-complete',
-            participantId: judgeId,
-            messageType: 'judgment'
-          });
-        }
+        judgmentSchema
       );
 
-      // Extract winner from judgment
-      const winnerMatch = fullJudgment.match(/WINNER:\s*([^\n]+)/i);
-      const reasoningMatch = fullJudgment.match(/REASONING:\s*([\\s\\S]+)/i);
+      let winner = result.winner?.trim() || 'Unable to determine';
+      const reasoning = result.reasoning?.trim() || 'No reasoning provided';
 
-      // Clean up winner string: remove markdown formatting and extra punctuation
-      let winner = winnerMatch ? winnerMatch[1]?.trim() ?? 'Unable to determine' : 'Unable to determine';
+      // Validate winner is one of the actual positions
       if (winner !== 'Unable to determine') {
-        // Remove markdown bold/italic markers
-        winner = winner.replace(/\*\*/g, '').replace(/\*/g, '').replace(/__/g, '').replace(/_/g, '');
-        // Remove trailing punctuation and whitespace
-        winner = winner.replace(/[.:;,!?]+$/, '').trim();
-
-        // Try to match to an actual debate position (case-insensitive partial match)
-        const normalizedWinner = winner.toLowerCase();
-        const matchedPosition = state.confirmedPositions.find(pos =>
-          normalizedWinner.includes(pos.toLowerCase()) || pos.toLowerCase().includes(normalizedWinner)
+        const matchedParticipant = state.participants.find(p =>
+          p.position.toLowerCase() === winner.toLowerCase()
         );
-        if (matchedPosition) {
-          winner = matchedPosition;
+
+        if (matchedParticipant) {
+          winner = matchedParticipant.position; // Use exact position text
+        } else {
+          // Try fuzzy matching as fallback
+          const normalizedWinner = winner.toLowerCase();
+          const fuzzyMatch = state.participants.find(p => {
+            const posLower = p.position.toLowerCase();
+            return posLower.includes(normalizedWinner) || normalizedWinner.includes(posLower);
+          });
+          if (fuzzyMatch) {
+            winner = fuzzyMatch.position;
+          } else {
+            console.warn(`[Judge ${index + 1}] Could not match winner "${winner}" to any participant position`);
+          }
         }
       }
 
-      const reasoning = reasoningMatch ? reasoningMatch[1]?.trim() ?? fullJudgment : fullJudgment;
+      // Broadcast completion
+      sessionManager.broadcast(this.sessionId, {
+        type: 'judge-complete',
+        judgeId,
+        winner,
+        reasoning
+      });
 
       return {
         judgeId,
@@ -400,7 +427,7 @@ REASONING: [Your detailed reasoning for the decision]`;
         model,
         winner,
         reasoning,
-        fullResponse: fullJudgment
+        fullResponse: JSON.stringify(result)
       };
     });
 

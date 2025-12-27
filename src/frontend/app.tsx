@@ -14,7 +14,7 @@ import './styles.css';
 
 function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const { state, streamingMessages, updateState, setState } = useDebateState();
+  const { state, streamingMessages, judgeVerdicts, updateState, setState } = useDebateState();
   const { connected } = useWebSocket(sessionId, updateState);
 
   useEffect(() => {
@@ -50,16 +50,16 @@ function App() {
     );
   }
 
-  // Get streaming content for all 3 judges
-  const judgeStreams = {
-    'judge-1': streamingMessages.get('judge-1') || '',
-    'judge-2': streamingMessages.get('judge-2') || '',
-    'judge-3': streamingMessages.get('judge-3') || '',
+  // Get verdict data for all 3 judges
+  const judgeData = {
+    'judge-1': judgeVerdicts.get('judge-1'),
+    'judge-2': judgeVerdicts.get('judge-2'),
+    'judge-3': judgeVerdicts.get('judge-3'),
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm mb-6">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      <header className="bg-white shadow-sm shrink-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             LLM Roundtable
@@ -68,7 +68,7 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 pb-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 pb-4 min-h-0 flex flex-col overflow-y-auto">
         {state.phase === 'topic-proposal' && <TopicProposal sessionId={sessionId} />}
 
         {state.phase === 'position-generation' && (
@@ -85,9 +85,9 @@ function App() {
           <PositionSetup
             sessionId={sessionId}
             positions={state.suggestedPositions}
-            onConfirm={(participants, maxRounds, customSystemPrompt) => {
-              console.log('[App] Setting participants, maxRounds, and customSystemPrompt in state:', participants.length, maxRounds);
-              setState(s => ({ ...s, participants, maxRounds, customSystemPrompt }));
+            onConfirm={(participants, maxRounds, customSystemPrompt, judgeModels) => {
+              console.log('[App] Setting participants, maxRounds, customSystemPrompt, and judgeModels in state:', participants.length, maxRounds, judgeModels);
+              setState(s => ({ ...s, participants, maxRounds, customSystemPrompt, judgeModels }));
             }}
           />
         )}
@@ -103,106 +103,68 @@ function App() {
           />
         )}
 
-        {state.phase === 'research' && (
+        {(state.phase === 'research' || state.phase === 'opening-ready') && (
           <ResearchPhase
             participants={state.participants}
             messages={state.messages}
             streamingMessages={streamingMessages}
+            statusMessage={state.phase === 'opening-ready' ? "Research Complete!" : undefined}
+            nextLabel={state.phase === 'opening-ready' ? "Start Opening Statements →" : undefined}
+            onNext={state.phase === 'opening-ready' ? async () => {
+              try {
+                await fetch(`/api/session/${sessionId}/start-opening`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                });
+              } catch (error) {
+                console.error('Error starting opening statements:', error);
+              }
+            } : undefined}
           />
         )}
 
-        {state.phase === 'opening-ready' && (
-          <>
-            <ResearchPhase
-              participants={state.participants}
-              messages={state.messages}
-              streamingMessages={streamingMessages}
-            />
-            <div className="mt-6 bg-white rounded-lg shadow-lg p-6 text-center">
-              <h3 className="text-lg font-semibold mb-2">Research Complete!</h3>
-              <p className="text-gray-600 mb-4">
-                All participants have finished their research. Ready to begin opening statements?
-              </p>
-              <button
-                onClick={async () => {
-                  try {
-                    await fetch(`/api/session/${sessionId}/start-opening`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                    });
-                  } catch (error) {
-                    console.error('Error starting opening statements:', error);
-                  }
-                }}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Start Opening Statements →
-              </button>
-            </div>
-          </>
-        )}
-
-        {(state.phase === 'opening-statements' || state.phase === 'debate') && (
-          <DebateView state={state} streamingMessages={streamingMessages} />
-        )}
-
-        {state.phase === 'debate-ready' && (
-          <>
-            <DebateView state={state} streamingMessages={streamingMessages} />
-            <div className="mt-6 bg-white rounded-lg shadow-lg p-6 text-center">
-              <h3 className="text-lg font-semibold mb-2">Opening Statements Complete!</h3>
-              <p className="text-gray-600 mb-4">
-                All participants have delivered their opening statements. Ready to begin debate rounds?
-              </p>
-              <button
-                onClick={async () => {
-                  try {
-                    await fetch(`/api/session/${sessionId}/start-debate`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                    });
-                  } catch (error) {
-                    console.error('Error starting debate:', error);
-                  }
-                }}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Start Debate Rounds →
-              </button>
-            </div>
-          </>
-        )}
-
-        {state.phase === 'judging-ready' && (
-          <>
-            <DebateView state={state} streamingMessages={streamingMessages} />
-            <div className="mt-6 bg-white rounded-lg shadow-lg p-6 text-center">
-              <h3 className="text-lg font-semibold mb-2">Debate Complete!</h3>
-              <p className="text-gray-600 mb-4">
-                All debate rounds are finished. Ready to hear the judge's verdict?
-              </p>
-              <button
-                onClick={async () => {
-                  try {
-                    await fetch(`/api/session/${sessionId}/start-judging`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                    });
-                  } catch (error) {
-                    console.error('Error starting judging:', error);
-                  }
-                }}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Start Judging →
-              </button>
-            </div>
-          </>
+        {(state.phase === 'opening-statements' || state.phase === 'debate' || state.phase === 'debate-ready' || state.phase === 'judging-ready') && (
+          <DebateView 
+            state={state} 
+            streamingMessages={streamingMessages} 
+            statusMessage={
+              state.phase === 'debate-ready' ? "Opening Statements Complete!" :
+              state.phase === 'judging-ready' ? "Debate Rounds Complete!" :
+              undefined
+            }
+            nextLabel={
+              state.phase === 'debate-ready' ? "Start Debate Rounds →" :
+              state.phase === 'judging-ready' ? "Start Judging →" :
+              undefined
+            }
+            onNext={
+              state.phase === 'debate-ready' ? async () => {
+                try {
+                  await fetch(`/api/session/${sessionId}/start-debate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                  });
+                } catch (error) {
+                  console.error('Error starting debate:', error);
+                }
+              } :
+              state.phase === 'judging-ready' ? async () => {
+                try {
+                  await fetch(`/api/session/${sessionId}/start-judging`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                  });
+                } catch (error) {
+                  console.error('Error starting judging:', error);
+                }
+              } : undefined
+            }
+          />
         )}
 
         {state.phase === 'judging' && (
           <JudgingView
-            judgeStreams={judgeStreams}
+            judgeData={judgeData}
             judgeModels={state.judgeModels || ['google/gemini-3-flash-preview', 'google/gemini-3-flash-preview', 'google/gemini-3-flash-preview']}
           />
         )}
@@ -224,15 +186,29 @@ function App() {
                   </div>
                 </div>
 
-                <div className="mb-8 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-semibold mb-3">Vote Tally</h4>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(state.votingResult.voteCounts).map(([position, count]) => (
-                      <div key={position} className="px-4 py-2 bg-white rounded-lg border border-blue-200">
-                        <span className="font-semibold">{position}:</span>
-                        <span className="ml-2 text-blue-600 font-bold">{count} vote{count !== 1 ? 's' : ''}</span>
-                      </div>
-                    ))}
+                <div className="mb-8">
+                  <h4 className="font-semibold mb-4 text-gray-900 border-b border-gray-200 pb-2">Vote Tally</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(state.votingResult.voteCounts).map(([position, count]) => {
+                       const totalVotes = Object.values(state.votingResult!.voteCounts).reduce((a, b) => a + b, 0);
+                       const percentage = (count / totalVotes) * 100;
+                       
+                       return (
+                        <div key={position} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative overflow-hidden">
+                          <div 
+                            className="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-1000 ease-out"
+                            style={{ width: `${percentage}%` }}
+                          />
+                          <div className="flex justify-between items-start mb-1">
+                             <div className="text-sm text-gray-500 uppercase tracking-wide font-semibold pr-2">{position}</div>
+                             <div className="text-2xl font-bold text-gray-900 leading-none">{count}</div>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {percentage.toFixed(0)}% of votes
+                          </div>
+                        </div>
+                       );
+                    })}
                   </div>
                 </div>
 

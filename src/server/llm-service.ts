@@ -1,4 +1,4 @@
-import { streamText } from 'ai';
+import { streamText, generateText, Output, jsonSchema } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
 // Create OpenRouter provider
@@ -27,13 +27,23 @@ export async function streamLLMResponse(
 
   while (retryCount < maxRetries) {
     try {
-      console.log(`[LLM] Calling ${model}...`);
+      console.log(`[LLM] Calling ${model} with extended thinking enabled...`);
+
+      // Enable extended thinking for supported models
+      // For OpenRouter, we use experimental_providerMetadata to pass thinking parameters
       const result = await streamText({
         model: openrouter(model),
         system: systemPrompt,
         prompt: userPrompt,
         temperature: 0.7,
-        // maxTokens: 2000, 
+        experimental_providerMetadata: {
+          openrouter: {
+            reasoning: {
+              effort: 'high'  // Enable reasoning with high effort
+            }
+          }
+        }
+        // maxTokens: 2000,
       });
 
       // Stream chunks as they arrive
@@ -83,6 +93,64 @@ export async function getLLMResponse(
   );
 
   return fullResponse;
+}
+
+/**
+ * Get structured LLM response with enforced JSON schema
+ * @param model - Model identifier
+ * @param systemPrompt - System prompt for the LLM
+ * @param userPrompt - User prompt for the LLM
+ * @param schema - Typed JSON schema created with jsonSchema helper
+ * @returns Parsed output object with type safety
+ */
+export async function getStructuredLLMResponse<T>(
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  schema: ReturnType<typeof jsonSchema<T>>
+): Promise<T> {
+  const maxRetries = 3;
+  let retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      console.log(`[LLM] Calling ${model} with structured output...`);
+
+      const result = await generateText({
+        model: openrouter(model),
+        system: systemPrompt,
+        prompt: userPrompt,
+        temperature: 0.7,
+        output: Output.object({
+          schema: schema,
+        }),
+        experimental_providerMetadata: {
+          openrouter: {
+            reasoning: {
+              effort: 'high'
+            }
+          }
+        }
+      });
+
+      return result.output as T;
+    } catch (error: any) {
+      console.error('Error getting structured LLM response:', error);
+
+      // Check if it's a rate limit error (429)
+      if (error?.statusCode === 429 && retryCount < maxRetries - 1) {
+        retryCount++;
+        const waitTime = Math.pow(2, retryCount) * 5000;
+        console.log(`Rate limit hit. Retrying in ${waitTime / 1000}s... (attempt ${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error('Max retries exceeded');
 }
 
 export async function getAvailableModels(): Promise<string[]> {
