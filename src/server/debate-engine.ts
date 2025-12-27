@@ -15,6 +15,32 @@ export class DebateEngine {
   }
 
   /**
+   * Generate a summary of all judge verdicts
+   */
+  private async generateVerdictsSummary(topic: string, verdicts: any[], model: string): Promise<string> {
+    const verdictsText = verdicts.map(v => 
+      `Judge: ${v.judgeName} (${v.model})
+Vote: ${v.winner}
+Reasoning: ${v.reasoning}`
+    ).join('\n\n---\n\n');
+
+    const systemPrompt = "You are a Chief Justice reviewing the individual verdicts of a panel of judges. Your goal is to synthesize their decisions into a cohesive summary.";
+    const userPrompt = `Topic: ${topic}
+
+Here are the verdicts from 3 independent judges:
+
+${verdictsText}
+
+Please provide a concise "Majority Opinion" summary (1-2 paragraphs).
+- Identify the consensus view (if any) or the main points of contention.
+- Highlight the strongest arguments that swayed the judges.
+- Synthesize the overall outcome of the debate.
+- Do NOT list each judge's opinion individually; instead, weave them into a narrative about the debate's conclusion.`;
+
+    return await getLLMResponse(model, systemPrompt, userPrompt);
+  }
+
+  /**
    * Generate debate positions from a topic
    */
   async generatePositions(): Promise<string[]> {
@@ -434,6 +460,15 @@ Format your reasoning using markdown with:
     // Wait for all judges to complete
     const verdicts = await Promise.all(judgePromises);
 
+    // Generate summary of all verdicts
+    let judgeSummary: string | undefined;
+    try {
+      judgeSummary = await this.generateVerdictsSummary(state.topic, verdicts, state.judgeModels[0] || 'google/gemini-2.0-flash-thinking-exp:free');
+    } catch (error) {
+      console.error('Error generating judge summary:', error);
+      judgeSummary = "Unable to generate summary of judge verdicts.";
+    }
+
     // Aggregate votes
     const voteCounts: Record<string, number> = {};
     for (const verdict of verdicts) {
@@ -451,7 +486,8 @@ Format your reasoning using markdown with:
       winner,
       isTie,
       voteCounts,
-      verdicts
+      verdicts,
+      judgeSummary
     };
 
     // Update session with voting result

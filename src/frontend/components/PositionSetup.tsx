@@ -55,8 +55,12 @@ export function PositionSetup({ sessionId, positions, onConfirm }: Props) {
     'You are a skilled debater. Argue your position persuasively, but remain respectful. Respond to others\' points with logic and evidence.'
   );
   const [loading, setLoading] = useState(false);
-  const [judgeModels, setJudgeModels] = useState<[string, string, string]>([DEFAULT_MODEL, DEFAULT_MODEL, DEFAULT_MODEL]);
-  const [useSameJudgeModel, setUseSameJudgeModel] = useState(true);
+  const [judgeModels, setJudgeModels] = useState<[string, string, string]>([
+    'anthropic/claude-opus-4.5', 
+    'google/gemini-3-pro-preview', 
+    'moonshotai/kimi-k2-thinking'
+  ]);
+  const [useSameJudgeModel, setUseSameJudgeModel] = useState(false);
 
   useEffect(() => {
     fetch('/api/models')

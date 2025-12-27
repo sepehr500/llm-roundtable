@@ -186,6 +186,20 @@ function App() {
                   </div>
                 </div>
 
+                {state.votingResult.judgeSummary && (
+                  <div className="mb-8">
+                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 shadow-sm">
+                       <h3 className="text-lg font-bold text-amber-900 mb-3 flex items-center gap-2">
+                          <span className="text-xl">⚖️</span> 
+                          <span>Consensus Summary</span>
+                       </h3>
+                       <div className="prose prose-sm max-w-none text-amber-900/90 leading-relaxed">
+                          <Streamdown>{state.votingResult.judgeSummary}</Streamdown>
+                       </div>
+                     </div>
+                  </div>
+                )}
+
                 <div className="mb-8">
                   <h4 className="font-semibold mb-4 text-gray-900 border-b border-gray-200 pb-2">Vote Tally</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -213,20 +227,21 @@ function App() {
                 </div>
 
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">Judge Verdicts</h3>
-                  <div className="space-y-3">
-                    {state.votingResult.verdicts.map((verdict) => (
-                      <div key={verdict.judgeId} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <strong className="text-gray-900">{verdict.judgeName}</strong>
-                            <span className="text-sm text-gray-500 ml-2">({verdict.model})</span>
+                  <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">Judge Verdicts</h3>
+                  <div className="space-y-4">
+                    {state.votingResult.verdicts.map((verdict, index) => (
+                      <div key={verdict.judgeId} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                             <span className="font-bold text-gray-900">{verdict.judgeName}</span>
+                             <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">{verdict.model}</span>
                           </div>
-                          <div className="text-sm font-semibold text-blue-600">
-                            Voted for: {verdict.winner}
+                          <div className="text-sm">
+                             <span className="text-gray-500 mr-2">Voted for:</span>
+                             <span className="font-bold text-blue-700">{verdict.winner}</span>
                           </div>
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="p-5 text-gray-700 text-sm leading-relaxed prose prose-sm max-w-none">
                           <Streamdown>{verdict.reasoning}</Streamdown>
                         </div>
                       </div>
@@ -241,7 +256,7 @@ function App() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-4 bg-gray-50 rounded">
                   <div className="text-gray-600">Topic</div>
-                  <div className="font-semibold">{state.topic}</div>
+                  <div className="font-semibold line-clamp-3" title={state.topic}>{state.topic}</div>
                 </div>
                 <div className="p-4 bg-gray-50 rounded">
                   <div className="text-gray-600">Rounds</div>

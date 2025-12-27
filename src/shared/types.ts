@@ -48,6 +48,7 @@ export interface VotingResult {
   isTie: boolean;
   voteCounts: Record<string, number>;  // Position -> vote count
   verdicts: JudgeVerdict[];
+  judgeSummary?: string;   // AI-generated summary of all verdicts
 }
 
 // Complete debate session state

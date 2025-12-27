@@ -39,8 +39,8 @@ export function DebateView({ state, streamingMessages, onNext, nextLabel, status
   return (
     <div className="bg-white rounded-lg shadow-lg h-full flex flex-col relative">
       <div className="border-b border-gray-200 p-6 bg-gray-50/50 flex justify-between items-start gap-4 shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{state.topic}</h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl font-bold text-gray-900 line-clamp-2" title={state.topic}>{state.topic}</h2>
           <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
             <span className="px-2.5 py-0.5 rounded-full bg-gray-100 border border-gray-200 font-medium">
               Phase: {state.phase === 'opening-statements' ? 'Opening Statements' : 'Debate'}
