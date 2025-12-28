@@ -34,7 +34,7 @@ A debate platform where multiple AI language models engage in structured debates
 ### Installation
 
 ```bash
-git clone https://github.com/[your-username]/llm-roundtable.git
+git clone https://github.com/sepehr500/llm-roundtable.git
 cd llm-roundtable
 bun install
 ```
