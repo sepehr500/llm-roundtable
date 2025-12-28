@@ -50,7 +50,7 @@ OPENROUTER_API_KEY=your_api_key_here
 ### Run
 
 ```bash
-bun --hot index.ts
+bun index.ts
 ```
 
 Open `http://localhost:3000`
